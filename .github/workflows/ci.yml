@@ -18,6 +18,6 @@ jobs:
       MONDOO_SERVICE_ACCOUNT: "${{ fromJson(secrets.VAULT_KV_1D187965_OP_MONDOO_PACKER_AGENT).password }}"
     with:
       dockerfile: Dockerfile
-      score: 50
+      score: 0
       platforms: "linux/amd64, linux/arm64"
       release: true
