@@ -1,6 +1,7 @@
 job "dynamic-app" {
   datacenters = ["dc1"]
   type        = "service"
+  namespace   = "demo"
 
   group "dynamic-app" {
     count = 1
@@ -15,6 +16,12 @@ job "dynamic-app" {
     service {
       name = "dynamic-app"
       port = "web"
+
+      tags = ["traefik.enable=true",
+        "traefik.http.routers.${NOMAD_JOB_NAME}.rule=Host(`dynamic-app.127.0.0.1.nip.io`)",
+        "traefik.http.routers.${NOMAD_JOB_NAME}.entrypoints=http",
+        "traefik.http.routers.${NOMAD_JOB_NAME}.tls=false"
+      ]
 
       check {
         type     = "http"

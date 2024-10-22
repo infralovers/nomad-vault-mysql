@@ -1,7 +1,6 @@
 job "dynamic-app" {
-  datacenters = ["core"]
+  datacenters = ["dc1"]
   type        = "service"
-  namespace   = "demo"
 
   group "dynamic-app" {
     count = 1
@@ -15,6 +14,14 @@ job "dynamic-app" {
     service {
       name = "dynamic-app"
       port = "web"
+
+      check {
+        type     = "http"
+        method   = "GET"
+        interval = "10s"
+        timeout  = "2s"
+        path     = "/health"
+      }
     }
     restart {
       attempts = 10
