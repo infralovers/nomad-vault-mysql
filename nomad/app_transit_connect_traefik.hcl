@@ -1,10 +1,24 @@
 job "dynamic-app" {
   datacenters = ["dc1"]
   type        = "service"
+  namespace   = "demo"
 
   group "dynamic-app" {
     count = 1
 
+    restart {
+      attempts = 10
+      interval = "5m"
+      delay    = "25s"
+      mode     = "delay"
+    }
+
+    network {
+      mode = "bridge"
+      // port "web" {
+      //   to = 8080
+      // }
+    }
 
     vault {
       policies      = ["nomad-dynamic-app"]
@@ -12,24 +26,35 @@ job "dynamic-app" {
       change_signal = "SIGINT"
     }
 
+
     service {
       name = "dynamic-app"
-      port = "web"
-
+      port = "8080"
+      tags = ["traefik.enable=true",
+        "traefik.http.routers.dynamic-app.rule=Host(`dynamic-app.127.0.0.1.nip.io`)",
+        "traefik.http.routers.dynamic-app.entrypoints=http",
+        "traefik.http.routers.dynamic-app.tls=false",
+        "traefik.connsulcatalog.connect=true"
+      ]
+      connect {
+        sidecar_service {
+          proxy {
+            upstreams {
+              destination_name = "mysql-server"
+              local_bind_port  = 3306
+            }
+          }
+        }
+      }
       check {
+        expose   = true
         type     = "http"
+        name     = "heatlh"
         method   = "GET"
         interval = "10s"
         timeout  = "2s"
         path     = "/health"
       }
-    }
-
-    restart {
-      attempts = 10
-      interval = "5m"
-      delay    = "25s"
-      mode     = "delay"
     }
 
     task "dynamic-app" {
@@ -40,8 +65,7 @@ job "dynamic-app" {
         volumes = [
           "local/config.ini:/usr/src/app/config/config.ini"
         ]
-
-        ports = ["web"]
+        ports = [8080]
       }
 
       template {
@@ -51,11 +75,9 @@ job "dynamic-app" {
     LogLevel = DEBUG
     Port = 8080
     [DATABASE]
-    {{ range service "mysql-server" }}
-    Address = {{ .Address }}
-    Port = {{ .Port }}
-    {{end}}
-
+    Address = 127.0.0.1
+    Port = 3306
+    
     Database = my_app
     {{ with secret "dynamic-app/db/creds/app" }}
     User = {{ .Data.username }}
@@ -74,11 +96,6 @@ EOF
       resources {
         cpu    = 256
         memory = 256
-      }
-    }
-    network {
-      port "web" {
-        to = 8080
       }
     }
   }

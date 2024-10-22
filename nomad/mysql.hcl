@@ -1,7 +1,6 @@
 job "mysql-server" {
-  datacenters = ["core"]
+  datacenters = ["dc1"]
   type        = "service"
-  namespace   = "demo"
 
   group "mysql-server" {
     count = 1
@@ -32,7 +31,7 @@ job "mysql-server" {
 
       resources {
         cpu    = 500
-        memory = 1024
+        memory = 500
       }
     }
     network {
