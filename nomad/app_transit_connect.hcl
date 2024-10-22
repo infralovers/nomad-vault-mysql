@@ -1,7 +1,6 @@
 job "dynamic-app" {
-  datacenters = ["core"]
+  datacenters = ["dc1"]
   type        = "service"
-  namespace   = "demo"
 
   group "dynamic-app" {
     count = 1
