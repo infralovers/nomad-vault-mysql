@@ -3,23 +3,34 @@
 set -o xtrace
 
 VAULT_MOUNT="dynamic-app/db"
-MYSQL_ENDPOINT="mysql-server.service.consul"
+MYSQL_ENDPOINT="${MYSQL_ENDPOINT:-mysql-server.service.consul}"
 VAULT_ADDR=${VAULT_ADDR:-}
 VAULT_TOKEN=${VAULT_TOKEN:-}
 VAULT_FORMAT="json"
 
 export VAULT_FORMAT
 
-# vault secrets enable -path=$VAULT_MOUNT database
+if [ -z "$VAULT_ADDR" ]; then
+  echo "VAULT_ADDR is not set"
+  exit 1
+fi
+if [ -z "$VAULT_TOKEN" ]; then
+  echo "VAULT_TOKEN is not set"
+  exit 1
+fi
 
-vault write $VAULT_MOUNT/config/mysql \
-    plugin_name=mysql-database-plugin \
-    connection_url="{{username}}:{{password}}@tcp(${MYSQL_ENDPOINT}:3306)/" \
-    allowed_roles="*" \
-    username="root" \
-    password="super-duper-password"
+if [ "$(vault secrets list  | jq  ' . | keys' | grep "$VAULT_MOUNT" | wc -l  | tr -d ' ')" -eq 0 ]; then
+  vault secrets enable -path=$VAULT_MOUNT database
 
-# vault write  -force $VAULT_MOUNT/database/rotate-root/mysql
+  vault write $VAULT_MOUNT/config/mysql \
+      plugin_name=mysql-database-plugin \
+      connection_url="{{username}}:{{password}}@tcp(${MYSQL_ENDPOINT}:3306)/" \
+      allowed_roles="*" \
+      username="root" \
+      password="super-duper-password"
+
+  vault write  -force $VAULT_MOUNT/database/rotate-root/mysql
+fi
 
 vault write $VAULT_MOUNT/roles/app-long \
     db_name=mysql \
@@ -35,9 +46,7 @@ vault write $VAULT_MOUNT/roles/app \
     max_ttl="6m"
 
 vault read $VAULT_MOUNT/creds/app
-
 vault read $VAULT_MOUNT/creds/app-long
-
 
 POLICY=""
 if [ -n "$(vault policy list | grep nomad-dynamic-app)" ]; then
