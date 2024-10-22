@@ -1,3 +1,10 @@
+## 1.0.2 (2024-10-22)
+
+#### Bug Fixes
+
+* update and cleanup setup scripts (bbd50ade)
+
+
 ## 1.0.1 (2024-10-22)
 
 #### Bug Fixes
