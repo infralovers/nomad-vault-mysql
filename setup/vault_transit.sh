@@ -3,23 +3,31 @@
 set -o xtrace
 
 VAULT_MOUNT="dynamic-app/transit"
-TRANIT_KEY="app"
-MYSQL_ENDPOINT="mysql-server.service.consul"
 VAULT_ADDR=${VAULT_ADDR:-}
 VAULT_TOKEN=${VAULT_TOKEN:-}
 VAULT_FORMAT="json"
+TRANIT_KEY="app"
 
 export VAULT_FORMAT
 
-vault secrets enable  -path=$VAULT_MOUNT transit
+if [ -z "$VAULT_ADDR" ]; then
+  echo "VAULT_ADDR is not set"
+  exit 1
+fi
+if [ -z "$VAULT_TOKEN" ]; then
+  echo "VAULT_TOKEN is not set"
+  exit 1
+fi
+
+if [ "$(vault secrets list  | jq  ' . | keys' | grep "$VAULT_MOUNT" | wc -l  | tr -d ' ')" -eq 0 ]; then
+  vault secrets enable  -path=$VAULT_MOUNT transit
+fi
 
 # Create our customer key
 vault write  -f $VAULT_MOUNT/keys/$TRANIT_KEY
 
 # Create our archive key to demonstrate multiple keys
 vault write -f $VAULT_MOUNT/keys/$TRANIT_KEY
-
-
 
 DATA="4111 1111 1111 1111"
 CIPHERTEXT=$(vault write -format=json \
@@ -30,7 +38,6 @@ CIPHERTEXT=$(vault write -format=json \
 DECODED=$(vault write $VAULT_MOUNT/decrypt/$TRANIT_KEY -format=json \
               ciphertext=$CIPHERTEXT \
               | jq -r '.data | .plaintext' | base64 --decode)
-            
 
 cat <<EOF
 DATA: $DATA
