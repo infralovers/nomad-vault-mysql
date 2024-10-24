@@ -54,7 +54,9 @@ job "dynamic-app" {
     Port = {{ .Port }}
     {{end}}
 
-    Database = my_app
+    {{ with secret "dynamic-app/kv/database" }}
+    Database = {{ .Data.data.database }}
+    {{ end }}
     {{ with secret "dynamic-app/db/creds/app" }}
     User = {{ .Data.username }}
     Password = {{ .Data.password }}

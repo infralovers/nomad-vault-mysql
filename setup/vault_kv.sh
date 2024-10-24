@@ -21,7 +21,8 @@ fi
 if [ "$(vault secrets list  | jq  ' . | keys' | grep "$VAULT_MOUNT" | wc -l  | tr -d ' ')" -eq 0 ]; then
   vault secrets enable -path=$VAULT_MOUNT kv 
 fi
-vault kv put $VAULT_MOUNT/database username="root" password="super-duper-password"
+vault kv put $VAULT_MOUNT/database username="app" password="my-app-super-password" database="app"
+vault kv put $VAULT_MOUNT/database_root username="root" password="super-duper-password"
 
 if [ -n "$(vault policy list | grep nomad-dynamic-app)" ]; then
   exit 0
@@ -32,3 +33,10 @@ path \"$VAULT_MOUNT/database\" {
   capabilities = [ \"read\" ] 
 }
 " | vault policy write nomad-dynamic-app - 
+
+
+echo "
+path \"$VAULT_MOUNT/database_root\" { 
+  capabilities = [ \"read\" ] 
+}
+" | vault policy write nomad-mysql - 

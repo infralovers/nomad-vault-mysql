@@ -1,7 +1,6 @@
 job "whoami" {
   datacenters = ["dc1"]
   type        = "service"
-  namespace   = "demo"
 
   group "whoami" {
     count = 1
