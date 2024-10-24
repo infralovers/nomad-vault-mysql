@@ -1,3 +1,10 @@
+## 1.0.3 (2024-10-24)
+
+#### Bug Fixes
+
+* refactoring example (5fc3be6e)
+
+
 ## 1.0.2 (2024-10-22)
 
 #### Bug Fixes
