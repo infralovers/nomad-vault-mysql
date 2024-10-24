@@ -49,9 +49,9 @@ job "dynamic-app" {
     Port = {{ .Port }}
     {{end}}
 
-    Database = my_app
-    User = root
-    Password = super-duper-password
+    Database = app
+    User = app
+    Password = my-app-super-password
 EOF
       }
       resources {

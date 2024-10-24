@@ -64,12 +64,15 @@ class DbClient:
         if not addr or not token:
             logger.warn('Skipping initialization...')
             return
-        else:
-            logger.warn("Connecting to vault server: {}".format(addr))
-            self.vault_client = hvac.Client(url=addr, token=token, namespace=namespace)
-            self.key_name = key_name
-            self.mount_point = path
-            logger.debug("Initialized vault_client: {}".format(self.vault_client))
+        logger.warn("Connecting to vault server: {}".format(addr))
+        self.vault_client = hvac.Client(url=addr, token=token, namespace=namespace, verify=False)
+        if not self.vault_client.is_authenticated():
+            self.vault_client = None
+            logger.error("could not authenticate to vault")
+            return
+        self.key_name = key_name
+        self.mount_point = path
+        logger.debug("Initialized vault_client: {}".format(self.vault_client))
 
     def vault_db_auth(self, path):
         try:
