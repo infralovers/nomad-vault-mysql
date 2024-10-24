@@ -50,7 +50,6 @@ job "dynamic-app" {
         volumes = [
           "local/config.ini:/usr/src/app/config/config.ini"
         ]
-
         ports = ["web"]
       }
 
@@ -64,7 +63,9 @@ job "dynamic-app" {
     Address = 127.0.0.1
     Port = 3306
     
-    Database = my_app
+    {{ with secret "dynamic-app/kv/database" }}
+    Database = {{ .Data.data.database }}
+    {{ end }}
     {{ with secret "dynamic-app/db/creds/app" }}
     User = {{ .Data.username }}
     Password = {{ .Data.password }}

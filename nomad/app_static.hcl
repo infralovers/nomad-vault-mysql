@@ -55,10 +55,10 @@ job "dynamic-app" {
     Port = {{ .Port }}
     {{end}}
 
-    Database = my_app
     {{ with secret "dynamic-app/kv/database" }}
-    User = {{ .Data.username }}
-    Password = {{ .Data.password }}
+    Database = {{ .Data.data.database }}
+    User = {{ .Data.data.username }}
+    Password = {{ .Data.data.password }}
     {{ end }}
     [VAULT]
     Enabled = False        

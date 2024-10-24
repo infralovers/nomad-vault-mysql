@@ -64,22 +64,26 @@ class DbClient:
 
     # Later we will check to see if this is None to see whether to use Vault or not
     def init_vault(self, addr, token, namespace, path, key_name, transform_path, transform_masking_path, ssn_role, ccn_role):
+        self.vault_client = None
         if not addr or not token:
             logger.warn('Skipping initialization...')
             return
-        else:
-            logger.warn("Connecting to vault server: {}".format(addr))
-            self.vault_client = hvac.Client(url=addr, token=token, namespace=namespace)
-            logging.debug("Vault-token: {}".format(token))
-            self.key_name = key_name
-            self.mount_point = path
-            self.transform_mount_point = transform_path
-            self.transform_masking_mount_point = transform_masking_path
-            self.ssn_role = ssn_role
-            self.ccn_role = ccn_role
-            self.namespace = namespace
-            self.token = token
-            logger.debug("Initialized vault_client: {}".format(self.vault_client))
+        logger.warn("Connecting to vault server: {}".format(addr))
+        self.vault_client = hvac.Client(url=addr, token=token, namespace=namespace, verify=False)
+        if not self.vault_client.is_authenticated():
+            self.vault_client = None
+            logger.error("could not authenticate to vault")
+            return
+        logging.debug("Vault-token: {}".format(token))
+        self.key_name = key_name
+        self.mount_point = path
+        self.transform_mount_point = transform_path
+        self.transform_masking_mount_point = transform_masking_path
+        self.ssn_role = ssn_role
+        self.ccn_role = ccn_role
+        self.namespace = namespace
+        self.token = token
+        logger.debug("Initialized vault_client: {}".format(self.vault_client))
 
     def vault_db_auth(self, path):
         try:
@@ -96,6 +100,8 @@ class DbClient:
             response = self.vault_client.secrets.transit.encrypt_data(
                 mount_point = self.mount_point,
                 name = self.key_name,
+                
+                
                 plaintext = base64.b64encode(value.encode()).decode('ascii')
             )
             logger.debug('Response: {}'.format(response))

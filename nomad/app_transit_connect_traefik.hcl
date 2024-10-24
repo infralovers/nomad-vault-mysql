@@ -1,7 +1,6 @@
 job "dynamic-app" {
   datacenters = ["dc1"]
   type        = "service"
-  namespace   = "demo"
 
   group "dynamic-app" {
     count = 1
@@ -15,9 +14,6 @@ job "dynamic-app" {
 
     network {
       mode = "bridge"
-      // port "web" {
-      //   to = 8080
-      // }
     }
 
     vault {
@@ -26,14 +22,13 @@ job "dynamic-app" {
       change_signal = "SIGINT"
     }
 
-
     service {
       name = "dynamic-app"
       port = "8080"
       tags = ["traefik.enable=true",
         "traefik.http.routers.dynamic-app.rule=Host(`dynamic-app.127.0.0.1.nip.io`)",
-        "traefik.http.routers.dynamic-app.entrypoints=http",
-        "traefik.http.routers.dynamic-app.tls=false",
+        "traefik.http.routers.dynamic-app.entrypoints=https",
+        "traefik.http.routers.dynamic-app.tls=true",
         "traefik.connsulcatalog.connect=true"
       ]
       connect {
@@ -78,7 +73,9 @@ job "dynamic-app" {
     Address = 127.0.0.1
     Port = 3306
     
-    Database = my_app
+    {{ with secret "dynamic-app/kv/database" }}
+    Database = {{ .Data.data.database }}
+    {{ end }}
     {{ with secret "dynamic-app/db/creds/app" }}
     User = {{ .Data.username }}
     Password = {{ .Data.password }}

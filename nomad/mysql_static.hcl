@@ -5,18 +5,15 @@ job "mysql-server" {
   group "mysql-server" {
     count = 1
 
-    service {
-      name = "mysql-server"
-      port = "db"
-      connect {
-        sidecar_service {}
-      }
-    }
-
     vault {
       policies      = ["nomad-dynamic-app", "nomad-mysql"]
       change_mode   = "signal"
       change_signal = "SIGINT"
+    }
+
+    service {
+      name = "mysql-server"
+      port = "db"
     }
 
     restart {
@@ -36,7 +33,6 @@ job "mysql-server" {
           "/srv/mysql/:/var/lib/mysql"
         ]
       }
-
       template {
         destination = "secrets/.envs"
         change_mode = "noop"
