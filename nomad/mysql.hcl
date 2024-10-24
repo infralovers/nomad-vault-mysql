@@ -22,11 +22,17 @@ job "mysql-server" {
 
       env = {
         "MYSQL_ROOT_PASSWORD" = "super-duper-password"
+        "MYSQL_DATABASE" = "app"
+        "MYSQL_USER" = "app"
+        "MYSQL_PASSWORD" = "my-app-super-password"
       }
 
       config {
         image = "mysql:9"
         ports = ["db"]
+        volumes = [
+          "/srv/mysql/:/var/lib/mysql"
+        ]
       }
 
       resources {
