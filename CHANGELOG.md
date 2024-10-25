@@ -1,3 +1,10 @@
+## 1.0.5 (2024-10-25)
+
+#### Bug Fixes
+
+* ref to secret as dynamic value (76873f54)
+
+
 ## 1.0.4 (2024-10-25)
 
 #### Bug Fixes
