@@ -52,6 +52,7 @@ resource "vault_kv_secret_v2" "admin" {
     }
   )
 }
+
 resource "vault_mount" "db" {
   path = "${var.prefix}/db"
   type = "database"

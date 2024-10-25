@@ -2,26 +2,6 @@ import logging
 import requests
 from db_client import DbClient as TransitDBClient
 
-customer_table = """
-CREATE TABLE IF NOT EXISTS `customers` (
-    `cust_no` int(11) NOT NULL AUTO_INCREMENT,
-    `birth_date` varchar(255) NOT NULL,
-    `first_name` varchar(255) NOT NULL,
-    `last_name` varchar(255) NOT NULL,
-    `create_date` varchar(255) NOT NULL,
-    `social_security_number` varchar(255) NOT NULL,
-    `credit_card_number` varchar(255) NOT NULL,
-    `address` varchar(255) NOT NULL,
-    `salary` varchar(255) NOT NULL,
-    PRIMARY KEY (`cust_no`)
-) ENGINE=InnoDB;"""
-
-seed_customers = """
-INSERT IGNORE into customers VALUES
-  (2, "3/14/69", "Larry", "Johnson", "2020-01-01T14:49:12.301977", "360-56-6750", "3600-5600-6750-0000", "Tyler, Texas", "7000000"),
-  (40, "11/26/69", "Shawn", "Kemp", "2020-02-21T10:24:55.985726", "235-32-8091", "2350-3200-8091-0001", "Elkhart, Indiana", "15000000"),
-  (34, "2/20/63", "Charles", "Barkley", "2019-04-09T01:10:20.548144", "531-72-1553", "5310-7200-1553-0002", "Leeds, Alabama", "9000000");
-"""
 logger = logging.getLogger(__name__)
 
 
@@ -31,31 +11,19 @@ class DbClient(TransitDBClient):
     ssn_role = None
     ccn_role = None
 
-
-
     # Later we will check to see if this is None to see whether to use Vault or not
-    def init_vault(
+    def init_transform(
         self,
-        addr,
-        token,
-        namespace,
-        path,
-        key_name,
         transform_path,
         transform_masking_path,
         ssn_role,
         ccn_role,
     ):
-        super().init_vault(
-            addr=addr, token=token, namespace=namespace, path=path, key_name=key_name
-        )
         self.transform_mount_point = transform_path
         self.transform_masking_mount_point = transform_masking_path
         self.ssn_role = ssn_role
         self.ccn_role = ccn_role
-        self.namespace = namespace
-        self.token = token
-        logger.debug("Initialized vault_client: {}".format(self.vault_client))
+        logger.debug("Initialized transform: {}".format(self.vault_client))
 
     def encode_ssn(self, value):
         try:
@@ -76,7 +44,7 @@ class DbClient(TransitDBClient):
             )
             headers = {
                 "X-Vault-Token": self.vault_client.token,
-                "X-Vault-Namespace": self.namespace,
+                "X-Vault-Namespace": super().get_namespace(),
                 "Content-Type": "application/json",
                 "cache-control": "no-cache",
             }
@@ -106,7 +74,7 @@ class DbClient(TransitDBClient):
             )
             headers = {
                 "X-Vault-Token": self.vault_client.token,
-                "X-Vault-Namespace": self.namespace,
+                "X-Vault-Namespace": self.get_namespace(),
                 "Content-Type": "application/json",
                 "cache-control": "no-cache",
             }
@@ -138,7 +106,7 @@ class DbClient(TransitDBClient):
             )
             headers = {
                 "X-Vault-Token": self.vault_client.token,
-                "X-Vault-Namespace": self.namespace,
+                "X-Vault-Namespace": self.get_namespace(),
                 "Content-Type": "application/json",
                 "cache-control": "no-cache",
             }
@@ -148,6 +116,7 @@ class DbClient(TransitDBClient):
             return response.json()["data"]["decoded_value"]
         except Exception as e:
             logger.error("There was an error decoding the data: {}".format(e))
+        return None
 
     def process_customer(self, row, raw=None):
         r = {}

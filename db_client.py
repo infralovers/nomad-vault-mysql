@@ -1,10 +1,10 @@
-import mysql.connector
-from mysql.connector import errorcode
-import datetime
-import hvac
 import base64
 import logging
 import time
+
+import mysql.connector
+from mysql.connector import errorcode
+import hvac
 
 customer_table = """
 CREATE TABLE IF NOT EXISTS `customers` (
@@ -29,13 +29,15 @@ INSERT IGNORE into customers VALUES
 
 logger = logging.getLogger(__name__)
 
+
 class DbClient:
     conn = None
-    vault_client = None
+    vault_client: hvac.Client = None
     key_name = None
     mount_point = None
     username = None
     password = None
+    namespace = None
     is_initialized = False
 
     def init_db(self, uri, prt, uname, pw, db):
@@ -47,12 +49,14 @@ class DbClient:
         for i in range(0, 10):
             try:
                 logger.debug(
-                    "Connecting to {}:{} with username {} and password {}".format(uri, prt, uname, pw)
+                    "Connecting to {}:{} with username {} and password {}".format(
+                        uri, prt, uname, pw
+                    )
                 )
                 self.conn = mysql.connector.connect(
                     user=uname, password=pw, host=uri, port=prt
                 )
-                                
+
                 self.uri = uri
                 self.port = prt
                 self.username = uname
@@ -68,9 +72,8 @@ class DbClient:
                     logger.error(err)
                 logger.debug("Sleeping 5 seconds before retry")
                 time.sleep(3)
-                
-        raise ConnectionError(f"Could not connect {uri}:{prt} with user {uname}")
 
+        raise ConnectionError(f"Could not connect {uri}:{prt} with user {uname}")
 
     def _init_database(self, db):
         cursor = self.conn.cursor()
@@ -82,9 +85,11 @@ class DbClient:
         cursor.execute(seed_customers)
         self.conn.commit()
         cursor.close()
-        self.db = db        
+        self.db = db
         self.is_initialized = True
         
+    def get_namespace(self):
+        return self.namespace
 
     # Later we will check to see if this is None to see whether to use Vault or not
     def init_vault(self, addr, token, namespace, path, key_name):
@@ -95,10 +100,13 @@ class DbClient:
         self.vault_client = hvac.Client(
             url=addr, token=token, namespace=namespace, verify=False
         )
+        self.namespace = namespace
         if not self.vault_client.is_authenticated():
             self.vault_client = None
             logger.error("could not authenticate to vault")
             return
+        if key_name == "":
+            key_name = None
         self.key_name = key_name
         self.mount_point = path
         logger.debug("Initialized vault_client: {}".format(self.vault_client))
@@ -132,6 +140,7 @@ class DbClient:
             return response["data"]["ciphertext"]
         except Exception as e:
             logger.error("There was an error encrypting the data: {}".format(e))
+            raise e
 
     # The data returned from Transit is base64 encoded so we decode it before returning
     def decrypt(self, value):
@@ -152,20 +161,20 @@ class DbClient:
                 return decoded
             except Exception as e:
                 logger.error("There was an error encrypting the data: {}".format(e))
+                raise e
 
     # Long running apps may expire the DB connection
     def _execute_sql(self, sql, cursor):
         try:
             cursor.execute(sql)
             return 1
-        except mysql.connector.errors.OperationalError as e:
-            if e[0] == 2006:
-                logger.error("Error encountered: {}.  Reconnecting db...".format(e))
+        except mysql.connector.errors.OperationalError as error:
+            if error[0] == 2006:
+                logger.error("Error encountered: {}.  Reconnecting db...".format(error))
                 self.init_db(self.uri, self.port, self.username, self.password, self.db)
                 cursor = self.conn.cursor()
                 cursor.execute(sql)
                 return 0
-
 
     def process_customer(self, row, raw=None):
         r = {}
@@ -216,7 +225,7 @@ class DbClient:
         return results
 
     def get_insert_sql(self, record) -> str:
-        if self.vault_client is None:
+        if self.vault_client is None and self.key_name == None:
             return """INSERT INTO `customers` (`birth_date`, `first_name`, `last_name`, `create_date`, `social_security_number`, `credit_card_number`, `address`, `salary`)
                             VALUES  ("{}", "{}", "{}", "{}", "{}", "{}", "{}", "{}");""".format(
                 record["birth_date"],
