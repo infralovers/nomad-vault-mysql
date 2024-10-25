@@ -7,10 +7,10 @@ import json
 import logging
 import logging.config
 
-import db_client
-import db_client_transform
+from db_client import DbClient as TransitClient
+from db_client_transform import DbClient as TransformClient
 
-dbc = None
+dbc: TransitClient = None
 vclient = None
 
 log_level = {
@@ -119,47 +119,49 @@ def update_submit():
     records = update_customer()
     return render_template('records.html', results = json.loads(records), record_updated = True)
 
-if __name__ == '__main__':
-  logger.warn('In Main...')
-  conf = read_config()
+def init_vault():
+  global dbc
+  dbc = TransitClient()
+  if conf.has_section('VAULT') or conf['VAULT']['Enabled'].lower() == 'true':
+    return
   
+  logger.info('Vault is enabled...')
+  vault_token = ""
+  if conf['VAULT']['InjectToken'].lower() == 'true':
+    logger.info('Using Injected vault token')
+    vault_token = read_vault_token()
+  else:
+    vault_token = conf['VAULT']['Token']  
 
+  if not conf['VAULT'].has_section('Transform') or conf['VAULT']['Transform'].lower() == 'false':
+    dbc.init_vault(addr=conf['VAULT']['Address'], token=vault_token, namespace=conf['VAULT']['Namespace'], path=conf['VAULT']['KeyPath'], key_name=conf['VAULT']['KeyName'])
+  else:
+    logger.info('Using Transform database client...')
+    dbc = TransformClient()
+    dbc.init_vault(addr=conf['VAULT']['Address'], token=vault_token, namespace=conf['VAULT']['Namespace'], path=conf['VAULT']['KeyPath'], key_name=conf['VAULT']['KeyName'],transform_path=conf['VAULT']['TransformPath'], ssn_role=conf['VAULT']['SSNRole'], transform_masking_path=conf['VAULT']['TransformMaskingPath'], ccn_role=conf['VAULT']['CCNRole'])
+  
+  if conf["VAULT"].hasattr("database_auth") and conf["VAULT"]["database_auth"] != "":
+    dbc.vault_db_auth(conf["VAULT"]["database_auth"])
+
+if __name__ == '__main__':
+  logger.warning('In Main...')
+  conf = read_config()
   logging.basicConfig(
     level=log_level[conf['DEFAULT']['LogLevel']],
     format='%(asctime)s - %(levelname)8s - %(name)9s - %(funcName)15s - %(message)s'
   )
 
   try:
-    dbc = db_client.DbClient()
-
-    if conf.has_section('VAULT'):
-      if conf['VAULT']['Enabled'].lower() == 'true':
-        logger.info('Vault is enabled...')
-        # if conf['VAULT']['Transform'].lower() == 'true':
-        #   logger.info('Using Transform database client...')
-        #   try:
-        #     dbc = db_client_transform.DbClient()
-        #   except Exception as e:
-        #     logging.error("There was an error starting the server: {}".format(e))
-        vault_token = ""
-        if conf['VAULT']['InjectToken'].lower() == 'true':
-          logger.info('Using Injected vault token')
-          vault_token = read_vault_token()
-        else:
-          vault_token = conf['VAULT']['Token']  
-
-        # transform_path=conf['VAULT']['TransformPath'], ssn_role=conf['VAULT']['SSNRole'], transform_masking_path=conf['VAULT']['TransformMaskingPath'], ccn_role=conf['VAULT']['CCNRole']
-        dbc.init_vault(addr=conf['VAULT']['Address'], token=vault_token, namespace=conf['VAULT']['Namespace'], path=conf['VAULT']['KeyPath'], key_name=conf['VAULT']['KeyName'])
-
-      if dbc.is_initialized is False: # we didn't use dynamic credentials
-        logger.info('Using DB credentials from config.ini...')
-        dbc.init_db(
-          uri=conf['DATABASE']['Address'],
-          prt=conf['DATABASE']['Port'],
-          uname=conf['DATABASE']['User'],
-          pw=conf['DATABASE']['Password'],
-          db=conf['DATABASE']['Database']
-        )
+    init_vault()
+    if not dbc.is_initialized:
+      logger.info('Using DB credentials from config.ini...')
+      dbc.init_db(
+        uri=conf['DATABASE']['Address'],
+        prt=conf['DATABASE']['Port'],
+        uname=conf['DATABASE']['User'],
+        pw=conf['DATABASE']['Password'],
+        db=conf['DATABASE']['Database']
+      )
     appPort = conf["DEFAULT"]["port"]
     logger.info('Starting Flask server on {} listening on port {}'.format('0.0.0.0', appPort))
     app.run(host='0.0.0.0', port=appPort)
