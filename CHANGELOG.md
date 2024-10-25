@@ -1,3 +1,10 @@
+## 1.0.6 (2024-10-25)
+
+#### Bug Fixes
+
+* pylint review, nomad jobfile update (b435ed2f)
+
+
 ## 1.0.5 (2024-10-25)
 
 #### Bug Fixes
