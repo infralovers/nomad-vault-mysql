@@ -1,3 +1,11 @@
+## 1.0.4 (2024-10-25)
+
+#### Bug Fixes
+
+* update docker image reference (5f984f52)
+* Refactoring implementation and Cleanup (f5728c57)
+
+
 ## 1.0.3 (2024-10-24)
 
 #### Bug Fixes
