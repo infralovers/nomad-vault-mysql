@@ -52,6 +52,8 @@ job "dynamic-app" {
     Database = app
     User = app
     Password = my-app-super-password
+    [VAULT]
+    Enabled = False
 EOF
       }
       resources {
