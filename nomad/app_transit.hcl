@@ -36,7 +36,7 @@ job "dynamic-app" {
       driver = "docker"
 
       config {
-        image = "docker.io/mabunixda/dynamic-vault-app"
+        image = "quay.io/infralovers/nomad-vault-mysql"
         volumes = [
           "local/config.ini:/usr/src/app/config/config.ini"
         ]
