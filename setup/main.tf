@@ -119,7 +119,7 @@ data "vault_policy_document" "nomad-dynamic-app" {
 
 data "vault_policy_document" "nomad-mysql" {
   rule {
-    path         = "${vault_mount.kv.path}/data/database_root"
+    path         = "${vault_mount.kv.path}/data/${vault_kv_secret_v2.admin.name}"
     capabilities = ["read"]
   }
 }
