@@ -1,3 +1,14 @@
+## 1.0.7 (2024-10-29)
+
+#### Bug Fixes
+
+* refactoring code (2848b12f)
+
+#### Code Refactoring
+
+* Cleanup of code using pylint and code reviews (b0345ad2)
+
+
 ## 1.0.6 (2024-10-25)
 
 #### Bug Fixes
