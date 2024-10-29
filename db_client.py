@@ -6,7 +6,7 @@ import mysql.connector
 from mysql.connector import errorcode
 import hvac
 
-customer_table = """
+CUSTOMER_TABLE = """
 CREATE TABLE IF NOT EXISTS `customers` (
     `cust_no` int(11) NOT NULL AUTO_INCREMENT,
     `birth_date` varchar(255) NOT NULL,
@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS `customers` (
     PRIMARY KEY (`cust_no`)
 ) ENGINE=InnoDB;"""
 
-seed_customers = """
+SEED_CUSTOMERS = """
 INSERT IGNORE into customers VALUES
   (2, "3/14/69", "Larry", "Johnson", "2020-01-01T14:49:12.301977", "360-56-6750", "3600-5600-6750-0000", "Tyler, Texas", "7000000"),
   (40, "11/26/69", "Shawn", "Kemp", "2020-02-21T10:24:55.985726", "235-32-8091", "2350-3200-8091-0001", "Elkhart, Indiana", "15000000"),
@@ -31,14 +31,18 @@ logger = logging.getLogger(__name__)
 
 
 class DbClient:
-    conn = None
+    conn: mysql.connector.MySQLConnection = None
+    uri: str = None
+    port: int = None
+    username: str = None
+    password: str = None
+    db: str = None
+
     vault_client: hvac.Client = None
-    key_name = None
-    mount_point = None
-    username = None
-    password = None
-    namespace = None
-    is_initialized = False
+    key_name: str = None
+    mount_point: str = None
+    namespace: str = None
+    is_initialized: bool = False
 
     def init_db(self, uri, prt, uname, pw, db):
         self.connect_db(uri, prt, uname, pw)
@@ -49,9 +53,7 @@ class DbClient:
         for i in range(0, 10):
             try:
                 logger.debug(
-                    "Connecting to {}:{} with username {} and password {}".format(
-                        uri, prt, uname, pw
-                    )
+                    f"Connecting to {uri}:{prt} with username {uname} and password {pw}"
                 )
                 self.conn = mysql.connector.connect(
                     user=uname, password=pw, host=uri, port=prt
@@ -77,17 +79,17 @@ class DbClient:
 
     def _init_database(self, db):
         cursor = self.conn.cursor()
-        logger.info("Preparing database {}...".format(db))
-        cursor.execute("CREATE DATABASE IF NOT EXISTS `{}`".format(db))
-        cursor.execute("USE `{}`".format(db))
+        logger.info(f"Preparing database {db}...")
+        cursor.execute(f"CREATE DATABASE IF NOT EXISTS `{db}`")
+        cursor.execute(f"USE `{db}`")
         logger.info("Preparing customer table...")
-        cursor.execute(customer_table)
-        cursor.execute(seed_customers)
+        cursor.execute(CUSTOMER_TABLE)
+        cursor.execute(SEED_CUSTOMERS)
         self.conn.commit()
         cursor.close()
         self.db = db
         self.is_initialized = True
-        
+
     def get_namespace(self):
         return self.namespace
 
@@ -96,7 +98,7 @@ class DbClient:
         if not addr or not token:
             logger.warning("Skipping initialization...")
             return
-        logger.warning("Connecting to vault server: {}".format(addr))
+        logger.warning(f"Connecting to vault server: {addr}")
         self.vault_client = hvac.Client(
             url=addr, token=token, namespace=namespace, verify=False
         )
@@ -109,7 +111,7 @@ class DbClient:
             key_name = None
         self.key_name = key_name
         self.mount_point = path
-        logger.debug("Initialized vault_client: {}".format(self.vault_client))
+        logger.debug(f"Initialized vault_client: {self.vault_client}")
 
     def vault_db_auth(self, path):
         try:
@@ -117,15 +119,11 @@ class DbClient:
             self.username = resp["data"]["username"]
             self.password = resp["data"]["password"]
             logger.debug(
-                "Retrieved username {} and password {} from Vault.".format(
-                    self.username, self.password
-                )
+                f"Retrieved username {self.username} and password {self.password} from Vault."
             )
         except Exception as e:
             logger.error(
-                "An error occurred reading DB creds from path {}.  Error: {}".format(
-                    path, e
-                )
+                f"An error occurred reading DB creds from path {path}.  Error: {e}"
             )
 
     # the data must be base64ed before being passed to encrypt
@@ -136,45 +134,44 @@ class DbClient:
                 name=self.key_name,
                 plaintext=base64.b64encode(value.encode()).decode("ascii"),
             )
-            logger.debug("Response: {}".format(response))
+            logger.debug(f"Response: {response}")
             return response["data"]["ciphertext"]
         except Exception as e:
-            logger.error("There was an error encrypting the data: {}".format(e))
+            logger.error(f"There was an error encrypting the data: {e}")
             raise e
 
     # The data returned from Transit is base64 encoded so we decode it before returning
     def decrypt(self, value):
         # support unencrypted messages on first read
-        logger.debug("Decrypting {}".format(value))
+        logger.debug(f"Decrypting {value}")
         if not value.startswith("vault:v"):
             return value
-        else:
-            try:
-                response = self.vault_client.secrets.transit.decrypt_data(
-                    mount_point=self.mount_point, name=self.key_name, ciphertext=value
-                )
-                logger.debug("Response: {}".format(response))
-                plaintext = response["data"]["plaintext"]
-                logger.debug("Plaintext (base64 encoded): {}".format(plaintext))
-                decoded = base64.b64decode(plaintext).decode()
-                logger.debug("Decoded: {}".format(decoded))
-                return decoded
-            except Exception as e:
-                logger.error("There was an error encrypting the data: {}".format(e))
-                raise e
+        try:
+            response = self.vault_client.secrets.transit.decrypt_data(
+                mount_point=self.mount_point, name=self.key_name, ciphertext=value
+            )
+            logger.debug(f"Response: {response}")
+            plaintext = response["data"]["plaintext"]
+            logger.debug(f"Plaintext (base64 encoded): {plaintext}")
+            decoded = base64.b64decode(plaintext).decode()
+            logger.debug(f"Decoded: {decoded}")
+            return decoded
+        except Exception as e:
+            logger.error(f"There was an error encrypting the data: {e}")
+            raise e
 
     # Long running apps may expire the DB connection
     def _execute_sql(self, sql, cursor):
         try:
             cursor.execute(sql)
-            return 1
         except mysql.connector.errors.OperationalError as error:
             if error[0] == 2006:
-                logger.error("Error encountered: {}.  Reconnecting db...".format(error))
+                logger.error(f"Error encountered: {error}.  Reconnecting db...")
                 self.init_db(self.uri, self.port, self.username, self.password, self.db)
                 cursor = self.conn.cursor()
                 cursor.execute(sql)
                 return 0
+        return 1
 
     def process_customer(self, row, raw=None):
         r = {}
@@ -198,7 +195,7 @@ class DbClient:
     def get_customer_records(self, num=None, raw=None):
         if num is None:
             num = 50
-        statement = "SELECT * FROM `customers` LIMIT {}".format(num)
+        statement = f"SELECT * FROM `customers` LIMIT {num}"
         cursor = self.conn.cursor()
         self._execute_sql(statement, cursor)
         results = []
@@ -207,11 +204,11 @@ class DbClient:
                 r = self.process_customer(row, raw)
                 results.append(r)
             except Exception as e:
-                logger.error("There was an error retrieving the record: {}".format(e))
+                logger.error(f"There was an error retrieving the record: {e}")
         return results
 
-    def get_customer_record(self, id):
-        statement = "SELECT * FROM `customers` WHERE cust_no = {}".format(id)
+    def get_customer_record(self, cid):
+        statement = f"SELECT * FROM `customers` WHERE cust_no = {cid}"
         cursor = self.conn.cursor()
         self._execute_sql(statement, cursor)
         results = []
@@ -220,39 +217,35 @@ class DbClient:
                 r = self.process_customer(row)
                 results.append(r)
             except Exception as e:
-                logger.error("There was an error retrieving the record: {}".format(e))
+                logger.error(f"There was an error retrieving the record: {e}")
 
         return results
 
     def get_insert_sql(self, record) -> str:
-        if self.vault_client is None and self.key_name == None:
-            return """INSERT INTO `customers` (`birth_date`, `first_name`, `last_name`, `create_date`, `social_security_number`, `credit_card_number`, `address`, `salary`)
-                            VALUES  ("{}", "{}", "{}", "{}", "{}", "{}", "{}", "{}");""".format(
-                record["birth_date"],
-                record["first_name"],
-                record["last_name"],
-                record["create_date"],
-                record["ssn"],
-                record["ccn"],
-                record["address"],
-                record["salary"],
-            )
+        if self.vault_client is None and self.key_name is None:
+            return f"""INSERT INTO `customers` (`birth_date`, `first_name`, `last_name`, `create_date`, `social_security_number`, `credit_card_number`, `address`, `salary`)
+                            VALUES  ("{record["birth_date"]}",
+                            "{record["first_name"]}",
+                            "{record["last_name"]}",
+                            "{record["create_date"]}",
+                            "{record["ssn"]}",
+                            "{record["ccn"]}",
+                            "{record["address"]}",
+                            "{record["salary"]}");"""
 
-        return """INSERT INTO `customers` (`birth_date`, `first_name`, `last_name`, `create_date`, `social_security_number`, `credit_card_number`, `address`, `salary`)
-                        VALUES  ("{}", "{}", "{}", "{}", "{}", "{}", "{}","{}");""".format(
-            self.encrypt(record["birth_date"]),
-            record["first_name"],
-            record["last_name"],
-            record["create_date"],
-            self.encrypt(record["ssn"]),
-            self.encrypt(record["ccn"]),
-            self.encrypt(record["address"]),
-            self.encrypt(record["salary"]),
-        )
+        return f"""INSERT INTO `customers` (`birth_date`, `first_name`, `last_name`, `create_date`, `social_security_number`, `credit_card_number`, `address`, `salary`)
+                        VALUES  ("{self.encrypt(record["birth_date"])}",
+                        "{record["first_name"]}",
+                        "{record["last_name"]}",
+                        "{record["create_date"]}",
+                        "{self.encrypt(record["ssn"])}",
+                        "{self.encrypt(record["ccn"])}",
+                        "{self.encrypt(record["address"])}",
+                        "{self.encrypt(record["salary"])}");"""
 
     def insert_customer_record(self, record):
         statement = self.get_insert_sql(record)
-        logger.debug("SQL Statement: {}".format(statement))
+        logger.debug(f"SQL Statement: {statement}")
         cursor = self.conn.cursor()
         self._execute_sql(statement, cursor)
         self.conn.commit()
@@ -260,34 +253,29 @@ class DbClient:
 
     def get_update_sql(self, record) -> str:
         if self.vault_client is None:
-            return """UPDATE `customers`
-                       SET birth_date = "{}", first_name = "{}", last_name = "{}", social_security_number = "{}", credit_card_number = "{}", address = "{}", salary = "{}"
-                       WHERE cust_no = {};""".format(
-                record["birth_date"],
-                record["first_name"],
-                record["last_name"],
-                record["ssn"],
-                record["ccn"],
-                record["address"],
-                record["salary"],
-                record["cust_no"],
-            )
-        return """UPDATE `customers`
-                       SET birth_date = "{}", first_name = "{}", last_name = "{}", social_security_number = "{}", credit_card_number = "{}", address = "{}", salary = "{}"
-                       WHERE cust_no = {};""".format(
-            self.encrypt(record["birth_date"]),
-            record["first_name"],
-            record["last_name"],
-            self.encrypt(record["ssn"]),
-            self.encrypt(record["ccn"]),
-            self.encrypt(record["address"]),
-            self.encrypt(record["salary"]),
-            record["cust_no"],
-        )
+            return f"""UPDATE `customers`
+                       SET birth_date = "{record["birth_date"]}",
+                       first_name = "{record["first_name"]}",
+                       last_name = "{record["last_name"]}",
+                       social_security_number = "{record["ssn"]}",
+                       credit_card_number = "{record["ccn"]}",
+                       address = "{record["address"]}",
+                       salary = "{record["salary"]}"
+                       WHERE cust_no = {record["cust_no"]};"""
+
+        return f"""UPDATE `customers`
+                       SET birth_date = "{self.encrypt(record["birth_date"])}",
+                       first_name = "{record["first_name"]}",
+                       last_name = "{record["last_name"]}",
+                       social_security_number = "{self.encrypt(record["ssn"])}",
+                       credit_card_number = "{self.encrypt(record["ccn"])}",
+                       address = "{self.encrypt(record["address"])}",
+                       salary = "{self.encrypt(record["salary"])}"
+                       WHERE cust_no = {record["cust_no"]};"""
 
     def update_customer_record(self, record):
         statement = self.get_update_sql(record)
-        logger.debug("Sql Statement: {}".format(statement))
+        logger.debug(f"Sql Statement: {statement}")
         cursor = self.conn.cursor()
         self._execute_sql(statement, cursor)
         self.conn.commit()
