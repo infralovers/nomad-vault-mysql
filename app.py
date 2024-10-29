@@ -1,11 +1,11 @@
+import configparser
 from datetime import datetime
 from os import getenv
 import json
 import logging
 import logging.config
 
-from flask import Flask, request, render_template, abort
-import configparser
+from flask import Flask, request, render_template
 
 from db_client import DbClient as TransitClient
 from db_client_transform import DbClient as TransformClient
@@ -21,10 +21,10 @@ app.config["TEMPLATES_AUTO_RELOAD"] = True
 
 
 def read_config() -> configparser.ConfigParser:
-    conf = configparser.ConfigParser()
-    with open("config/config.ini") as f:
-        conf.read_file(f)
-    return conf
+    config = configparser.ConfigParser()
+    with open("config/config.ini", encoding="utf-8") as f:
+        config.read_file(f)
+    return config
 
 
 def read_vault_token():
@@ -43,7 +43,7 @@ def health():
 @app.route("/customers", methods=["GET"])
 def get_customers():
     customers = dbc.get_customer_records()
-    logger.debug("Customers: {}".format(customers))
+    logger.debug(f"Customers: {customers}")
     return json.dumps(customers)
 
 
@@ -62,26 +62,26 @@ def get_customer():
 
 @app.route("/customers", methods=["POST"])
 def create_customer():
-    logging.debug("Form Data: {}".format(dict(request.form)))
-    customer = {k: v for (k, v) in dict(request.form).items()}
+    logging.debug(f"Form Data: {dict(request.form)}")
+    customer = dict(dict(request.form).items())
     for k, v in customer.items():
-        if type(v) is list:
+        if isinstance(v, list):
             customer[k] = v[0]
-    logging.debug("Customer: {}".format(customer))
+    logging.debug(f"Customer: {customer}")
     if "create_date" not in customer.keys():
         customer["create_date"] = datetime.now().isoformat()
     new_record = dbc.insert_customer_record(customer)
-    logging.debug("New Record: {}".format(new_record))
+    logging.debug(f"New Record: {new_record}")
     return json.dumps(new_record)
 
 
 @app.route("/customers", methods=["PUT"])
 def update_customer():
-    logging.debug("Form Data: {}".format(dict(request.form)))
-    customer = {k: v for (k, v) in dict(request.form).items()}
-    logging.debug("Customer: {}".format(customer))
+    logging.debug(f"Form Data: {dict(request.form)}")
+    customer = dict(dict(request.form).items())
+    logging.debug(f"Customer: {customer}")
     new_record = dbc.update_customer_record(customer)
-    logging.debug("New Record: {}".format(new_record))
+    logging.debug(f"New Record: {new_record}")
     return json.dumps(new_record)
 
 
@@ -91,7 +91,7 @@ def index():
 
 
 @app.route("/records", methods=["GET"])
-def records():
+def get_records():
     records = json.loads(get_customers())
     return render_template("records.html", results=records)
 
@@ -128,18 +128,16 @@ def update_submit():
     )
 
 
-def init_vault(conf):
-    global dbc
-    
+def init_vault(conf) -> TransitClient:
+    client = TransitClient()
     if not conf.has_section("VAULT") or conf["VAULT"]["Enabled"].lower() == "false":
-        return
+        return client
 
-    dbc = TransitClient()
     if (
-        conf.has_option("VAULT","Transform")
+        conf.has_option("VAULT", "Transform")
         and conf["VAULT"]["Transform"].lower() == "true"
     ):
-        dbc = TransformClient()
+        client = TransformClient()
 
     vault_token = ""
     if conf["VAULT"]["InjectToken"].lower() == "true":
@@ -148,7 +146,7 @@ def init_vault(conf):
     else:
         vault_token = conf["VAULT"]["Token"]
 
-    dbc.init_vault(
+    client.init_vault(
         addr=conf["VAULT"]["Address"],
         token=vault_token,
         namespace=conf["VAULT"]["Namespace"],
@@ -157,50 +155,49 @@ def init_vault(conf):
     )
 
     if (
-        conf.has_option("VAULT","Transform")
+        conf.has_option("VAULT", "Transform")
         and conf["VAULT"]["Transform"].lower() == "true"
     ):
         logger.info("Using Transform database client...")
-        dbc.init_transform(
+        client.init_transform(
             transform_path=conf["VAULT"]["TransformPath"],
             ssn_role=conf["VAULT"]["SSNRole"],
             transform_masking_path=conf["VAULT"]["TransformMaskingPath"],
             ccn_role=conf["VAULT"]["CCNRole"],
         )
+    if (
+        conf.has_option("VAULT", "database_auth")
+        and conf["VAULT"]["database_auth"] != ""
+    ):
+        client.vault_db_auth(conf["VAULT"]["database_auth"])
 
-    
-    if conf.has_option("VAULT", "database_auth") and conf["VAULT"]["database_auth"] != "":
-        dbc.vault_db_auth(conf["VAULT"]["database_auth"])
+    return client
 
 
 if __name__ == "__main__":
     logger.warning("In Main...")
-    conf = read_config()
-    
+    app_config = read_config()
 
     logging.basicConfig(
-        level=log_level[conf["DEFAULT"]["LogLevel"]],
+        level=log_level[app_config["DEFAULT"]["LogLevel"]],
         format="%(asctime)s - %(levelname)8s - %(name)9s - %(funcName)15s - %(message)s",
     )
 
     try:
-        init_vault(conf)
+        dbc = init_vault(app_config)
         if not dbc.is_initialized:
             logger.info("Using DB credentials from config.ini...")
             dbc.init_db(
-                uri=conf["DATABASE"]["Address"],
-                prt=conf["DATABASE"]["Port"],
-                uname=conf["DATABASE"]["User"],
-                pw=conf["DATABASE"]["Password"],
-                db=conf["DATABASE"]["Database"],
+                uri=app_config["DATABASE"]["Address"],
+                prt=app_config["DATABASE"]["Port"],
+                uname=app_config["DATABASE"]["User"],
+                pw=app_config["DATABASE"]["Password"],
+                db=app_config["DATABASE"]["Database"],
             )
-        appPort = conf["DEFAULT"]["port"]
-        logger.info(
-            "Starting Flask server on {} listening on port {}".format(
-                "0.0.0.0", appPort
-            )
-        )
-        app.run(host="0.0.0.0", port=appPort)
+        APP_HOST = "0.0.0.0"
+        appPort = app_config["DEFAULT"]["port"]
+        logger.info(f"Starting Flask server on {APP_HOST} listening on port {appPort}")
+        app.run(host=APP_HOST, port=appPort)
 
     except Exception as e:
-        logging.error("There was an error starting the server: {}".format(e))
+        logging.error(f"There was an error starting the server: {e}")
