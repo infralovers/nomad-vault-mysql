@@ -1,5 +1,6 @@
 import logging
 import requests
+
 from db_client import DbClient as TransitDBClient
 
 logger = logging.getLogger(__name__)

@@ -2,9 +2,9 @@ import base64
 import logging
 import time
 
+import hvac
 import mysql.connector
 from mysql.connector import errorcode
-import hvac
 
 CUSTOMER_TABLE = """
 CREATE TABLE IF NOT EXISTS `customers` (
