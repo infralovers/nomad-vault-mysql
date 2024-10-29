@@ -23,7 +23,7 @@ class DbClient(TransitDBClient):
         self.transform_masking_mount_point = transform_masking_path
         self.ssn_role = ssn_role
         self.ccn_role = ccn_role
-        logger.debug("Initialized transform: {}".format(self.vault_client))
+        logger.debug(f"Initialized transform: {self.vault_client}")
 
     def encode_ssn(self, value):
         try:
@@ -49,11 +49,13 @@ class DbClient(TransitDBClient):
                 "cache-control": "no-cache",
             }
 
-            response = requests.request("POST", url, data=payload, headers=headers)
-            logger.debug("Response: {}".format(response.text))
+            response = requests.request("POST", url, data=payload, headers=headers, timeout=300)
+            logger.debug(f"Response: {response.text}")
             return response.json()["data"]["encoded_value"]
         except Exception as e:
-            logger.error("There was an error encrypting the data: {}".format(e))
+            logger.error(f"There was an error encrypting the data: {e}")
+
+        return ""
 
     def encode_ccn(self, value):
         try:
@@ -79,15 +81,17 @@ class DbClient(TransitDBClient):
                 "cache-control": "no-cache",
             }
 
-            response = requests.request("POST", url, data=payload, headers=headers)
-            logger.debug("Response: {}".format(response.text))
+            response = requests.request("POST", url, data=payload, headers=headers, timeout=300)
+            logger.debug(f"Response: {response.text}")
             return response.json()["data"]["encoded_value"]
         except Exception as e:
-            logger.error("There was an error encrypting the data: {}".format(e))
+            logger.error(f"There was an error encrypting the data: {e}")
+
+        return ""
 
     def decode_ssn(self, value):
         # we're going to have funny stuff if ProtectRecords is false
-        logger.debug("Decoding {}".format(value))
+        logger.debug(f"Decoding {value}")
         try:
             # transform not available in hvac, raw api call
             url = (
@@ -111,11 +115,13 @@ class DbClient(TransitDBClient):
                 "cache-control": "no-cache",
             }
 
-            response = requests.request("POST", url, data=payload, headers=headers)
-            logger.debug("Response: {}".format(response.text))
+            response = requests.request(
+                "POST", url, data=payload, headers=headers, timeout=300
+            )
+            logger.debug(f"Response: {response.text}")
             return response.json()["data"]["decoded_value"]
         except Exception as e:
-            logger.error("There was an error decoding the data: {}".format(e))
+            logger.error(f"There was an error decoding the data: {e}")
         return None
 
     def process_customer(self, row, raw=None):
@@ -140,31 +146,27 @@ class DbClient(TransitDBClient):
         if self.vault_client is None:
             return super().get_insert_sql(record)
 
-        return """INSERT INTO `customers` (`birth_date`, `first_name`, `last_name`, `create_date`, `social_security_number`, `credit_card_number`, `address`, `salary`)
-                            VALUES  ("{}", "{}", "{}", "{}", "{}", "{}", "{}","{}");""".format(
-            self.encrypt(record["birth_date"]),
-            record["first_name"],
-            record["last_name"],
-            record["create_date"],
-            self.encode_ssn(record["ssn"]),
-            self.encode_ccn(record["ccn"]),
-            self.encrypt(record["address"]),
-            self.encrypt(record["salary"]),
-        )
+        return f"""INSERT INTO `customers` (`birth_date`, `first_name`, `last_name`, `create_date`,
+                    `social_security_number`, `credit_card_number`, `address`, `salary`)
+                            VALUES  ("{self.encrypt(record["birth_date"])}",
+                                     "{record["first_name"]}",
+                                     "{record["last_name"]}",
+                                     "{record["create_date"]}",
+                                     "{self.encode_ssn(record["ssn"])}",
+                                     "{self.encode_ccn(record["ccn"])}",
+                                     "{self.encrypt(record["address"])}",
+                                     "{self.encrypt(record["salary"])}");"""
 
     def get_update_sql(self, record) -> str:
         if self.vault_client is None:
             return super().get_update_sql(record)
 
-        return """UPDATE `customers`
-                    SET birth_date = "{}", first_name = "{}", last_name = "{}", social_security_number = "{}", credit_card_number = "{}", address = "{}", salary = "{}"
-                    WHERE cust_no = {};""".format(
-            self.encrypt(record["birth_date"]),
-            record["first_name"],
-            record["last_name"],
-            self.encode_ssn(record["ssn"]),
-            self.encode_ccn(record["ccn"]),
-            self.encrypt(record["address"]),
-            self.encrypt(record["salary"]),
-            record["cust_no"],
-        )
+        return f"""UPDATE `customers`
+                    SET birth_date = "{self.encrypt(record["birth_date"])}", f
+                    irst_name = "{record["first_name"]}",
+                    last_name = "{record["last_name"]}",
+                    social_security_number = "{self.encode_ssn(record["ssn"])}",
+                    credit_card_number = "{self.encode_ccn(record["ccn"])}",
+                    address = "{self.encrypt(record["address"])}",
+                    salary = "{self.encrypt(record["salary"])}"
+                    WHERE cust_no = {record["cust_no"]};"""
