@@ -24,9 +24,9 @@ fi
 vault kv put $VAULT_MOUNT/database username="app" password="my-app-super-password" database="app"
 vault kv put $VAULT_MOUNT/database_root username="root" password="super-duper-password"
 
-if [ -n "$(vault policy list | grep nomad-dynamic-app)" ]; then
-  exit 0
-fi 
+# if [ -n "$(vault policy list | grep nomad-dynamic-app)" ]; then
+#   exit 0
+# fi 
 
 echo "
 path \"$VAULT_MOUNT/database\" { 
