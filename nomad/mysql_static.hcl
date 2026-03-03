@@ -1,5 +1,5 @@
 job "mysql-server" {
-  datacenters = ["dc1"]
+  datacenters = ["core"]
   type        = "service"
 
   group "mysql-server" {
