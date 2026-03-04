@@ -1,3 +1,10 @@
+## 1.0.8 (2026-03-04)
+
+#### Bug Fixes
+
+* update workflow (d14df577)
+
+
 ## 1.0.7 (2024-10-29)
 
 #### Bug Fixes
