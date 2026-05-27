@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block content %}
+<p><br></p>
+  <h1 class="title">Update User</h1>
+  <form action="/update" method="post">
+      <div class="field">
+          <label class="label">Customer Number</label>
+          <div class="control">
+            <input class="input" type="text" name="cust_no" placeholder="Customer Number" value="{{ customer['customer_number'] if customer else '' }}">
+          </div>
+        </div>
+
+    <div class="field">
+      <label class="label">First Name</label>
+      <div class="control">
+        <input class="input" type="text" name="first_name" placeholder="First Name" value="{{ customer['first_name'] if customer else '' }}">
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="label">Last Name</label>
+      <div class="control">
+        <input class="input" type="text" name="last_name" placeholder="Last Name" value="{{ customer['last_name'] if customer else '' }}">
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="label">Birthdate</label>
+      <div class="control">
+        <input class="input" type="text" name="birth_date" placeholder="Birthdate" value="{{ customer['birth_date'] if customer else '' }}">
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="label">Social Security Number</label>
+      <div class="control">
+        <input class="input" type="text" placeholder="SSN" name="ssn" value="{{ customer['ssn'] if customer else '' }}">
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="label">Credit Card Number</label>
+      <div class="control">
+        <input class="input" type="text" placeholder="CCN" name="ccn" value="{{ customer['ccn'] if customer else '' }}">
+      </div>
+    </div>
+
+    <div class="field">
+        <label class="label">Address</label>
+        <div class="control">
+          <input class="input" type="text" name="address" placeholder="Address" value="{{ customer['address'] if customer else '' }}">
+        </div>
+      </div>
+
+      <div class="field">
+          <label class="label">Salary</label>
+          <div class="control">
+            <input class="input" type="text" name="salary" placeholder="Yearly Salary" value="{{ customer['salary'] if customer else '' }}">
+          </div>
+        </div>
+
+    <div class="field is-grouped">
+      <div class="control">
+        <button class="button is-link" type="submit">Submit</button>
+      </div>
+      <div class="control">
+        <a class="button is-text" href="/records">Cancel</a>
+      </div>
+    </div>
+  </form>
+{% endblock %}

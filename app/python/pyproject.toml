@@ -1,0 +1,31 @@
+[project]
+name = "dynamic-app"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "Flask==3.0.3",
+    "hvac==2.3.0",
+    "mysql-connector-python==9.0.0",
+    "requests==2.32.3",
+]
+
+[dependency-groups]
+dev = [
+    "pylint==3.3.1",
+]
+
+[tool.uv]
+package = false
+
+
+[tool.pylint."messages control"]
+disable = [
+    'C0114',
+    'C0115',
+    'C0116',
+    'W1203',
+    'W0718',
+]
+
+[tool.pylint.format]
+max-line-length = 200

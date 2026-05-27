@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block content %}
+<p><br></p>
+<div class="tile is-ancestor">
+  <div class="tile is-vertical is-parent">
+      <p class="title" style="font-family:gilmer-web, Gilmer, Geneva, Tahoma, Helvetica, Verdana, sans-serif;">Application Data</p>
+      <p style="color:#363942;">This table represents the application view. Transit protects data in motion and keeps cryptographic operations in Vault.</p>
+  </div>
+</div>
+
+{% if record_added %}
+  <div class="notification is-success">Record successfully added</div>
+{% endif %}
+
+{% if record_updated %}
+  <div class="notification is-info">Record successfully updated</div>
+{% endif %}
+
+<table class="table is-bordered is-striped is-narrow is-hoverable is-fullwidth">
+  <thead>
+    <tr>
+      <th>Cust #</th>
+      <th>First</th>
+      <th>Last</th>
+      <th>Date of Birth</th>
+      <th>SSN</th>
+      <th>Credit Card Number</th>
+      <th>Address</th>
+      <th>Salary</th>
+      <th>Created</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for record in results %}
+    <tr>
+      <td>{{ record['customer_number'] }}</td>
+      <td>{{ record['first_name'] }}</td>
+      <td>{{ record['last_name'] }}</td>
+      <td>{{ record['birth_date'] }}</td>
+      <td>{{ record['ssn'] }}</td>
+      <td>{{ record['ccn'] }}</td>
+      <td>{{ record['address'] }}</td>
+      <td>{{ record['salary'] }}</td>
+      <td>{{ record['create_date'] }}</td>
+      <td><a class="button is-small is-warning" href="/update?cust_no={{ record['customer_number'] }}">Edit</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% endblock %}

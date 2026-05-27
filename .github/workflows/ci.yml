@@ -15,9 +15,24 @@ permissions:
 
 jobs:
   build:
+    name: Build and Publish ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: python
+            dockerfile: app/python/Dockerfile
+            image_name: infralovers/nomad-vault-mysql
+          - name: dotnet
+            dockerfile: app/dotnet/Dockerfile
+            image_name: infralovers/nomad-vault-mysql-dotnet
     uses: infralovers/.github/.github/workflows/container.yml@main
     with:
-      dockerfile: Dockerfile
+      dockerfile: ${{ matrix.dockerfile }}
+      image_name: ${{ matrix.image_name }}
       score: 0
       platforms: "linux/amd64, linux/arm64"
-      release: true
+      release: false
+      push_dockerhub: false
+      push_github: false
+      push_quay: true

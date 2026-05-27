@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="hero">
+  <div class="hero-body">
+    <div>
+      <h1 class="title">
+        Protect your data!
+      </h1>
+      <p class="body" style="color:#363942;">
+        <br>
+        The <a href="https://www.vaultproject.io/docs/secrets/transit/index.html">Transit</a> secrets engine in HashiCorp Vault handles cryptographic functions on data in transit. Vault does not store the data sent to the secrets engine.
+      <p style="text-align:center;"><br><img src="/static/vault-transit.png" width="736" height="160" alt="Vault transit flow"><br></p>
+        <br>
+        The primary use case for Transit is to encrypt data from applications while still storing that encrypted data in some primary data store.
+        <p><br>
+        Think of a scenario where an organization must cryptographically protect personally identifiable information (PII) while preserving data format and length.
+        <p><br>
+        In this demonstration, transit protects sensitive customer fields before they are stored in MySQL.
+      </p>
+    </div>
+  </div>
+</section>
+{% endblock %}

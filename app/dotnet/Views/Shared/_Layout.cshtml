@@ -1,0 +1,58 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Protect Your Data!</title>
+    <link rel="stylesheet" type="text/css" href="/static/styles/style.css">
+    <link rel="stylesheet" type="text/css" href="/static/styles/fonts.css">
+    <script defer src="https://use.fontawesome.com/releases/v5.3.1/js/all.js"></script>
+</head>
+<body>
+    <table border="0" width="100%" bgcolor="#000">
+        <tr height="48"><td></td></tr>
+    </table>
+
+    <nav class="navbar" role="navigation" aria-label="main navigation">
+        <div class="container">
+            <div class="navbar-menu" style="display:flex; width:100%;">
+                <div class="navbar-start">
+                    <a class="navbar-item is-selected" href="/">Home</a>
+                    <a class="navbar-item" href="/records">Records</a>
+                    <a class="navbar-item" href="/dbview">Database View</a>
+                </div>
+                <div class="navbar-end">
+                    <div class="navbar-item">
+                        <div class="buttons">
+                            <a class="button is-success" href="/add"><strong>Add Record</strong></a>
+                        </div>
+                    </div>
+                    <div class="navbar-item">
+                        <div class="buttons">
+                            <a class="button is-info" href="/update"><strong>Update Record</strong></a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <section>
+        <div class="container">
+            @RenderBody()
+        </div>
+    </section>
+
+    <footer class="footer">
+        <div class="content has-text-centered">
+            <p>
+                <strong>HashiCorp Vault</strong><br>
+                This is a demonstration of Encryption as a Service using the Transit secrets engine,
+                and format-preserving encryption using the Transform secrets engine.
+            </p>
+        </div>
+    </footer>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>
