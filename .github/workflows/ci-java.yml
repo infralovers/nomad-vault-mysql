@@ -1,0 +1,65 @@
+name: Java Artifact Build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app/java/**"
+      - ".github/workflows/ci-java.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "app/java/**"
+      - ".github/workflows/ci-java.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-java-artifact:
+    name: Build Java JAR
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: app/java
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Build JAR
+        run: mvn -B -ntp clean package -DskipTests
+
+      - name: Prepare artifact file
+        run: |
+          cp target/nomad-vault-mysql-java-*.jar target/nomad-vault-mysql-java.jar
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nomad-vault-mysql-java
+          path: app/java/target/nomad-vault-mysql-java.jar
+          if-no-files-found: error
+
+      - name: Publish release asset (main only)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: ncipollo/release-action@v1
+        with:
+          tag: java-artifact-latest
+          name: Java Artifact (latest)
+          body: |
+            Automatically updated Java artifact for Nomad java-driver jobs.
+          artifacts: app/java/target/nomad-vault-mysql-java.jar
+          allowUpdates: true
+          artifactErrorsFailBuild: true
+          removeArtifacts: true
+          makeLatest: true
