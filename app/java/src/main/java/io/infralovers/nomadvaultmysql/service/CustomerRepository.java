@@ -81,6 +81,7 @@ public class CustomerRepository {
         for (int attempt = 0; attempt < 10; attempt++) {
             try (Connection conn = DriverManager.getConnection(baseUrl + "?allowPublicKeyRetrieval=true&useSSL=false", user, password)) {
                 log.info("Connected to MySQL at {}:{}", db.getAddress(), db.getPort());
+                conn.setAutoCommit(false);
                 try (Statement st = conn.createStatement()) {
                     st.execute("CREATE DATABASE IF NOT EXISTS `" + dbName + "`");
                     st.execute("USE `" + dbName + "`");
