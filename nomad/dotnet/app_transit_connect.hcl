@@ -5,6 +5,13 @@ job "dynamic-app" {
   group "dynamic-app" {
     count = 1
 
+    network {
+      mode = "bridge"
+      port "web" {
+        to = 8080
+      }
+    }
+
     vault {
       policies      = ["nomad-dynamic-app"]
       change_mode   = "signal"
@@ -15,8 +22,9 @@ job "dynamic-app" {
       name = "dynamic-app"
       port = "web"
       tags = [ "traefik.enable=true", 
-                "traefik.http.routers.app.rule=Host(`app.127.0.0.1.nip.io`)" ]
-
+                "traefik.http.routers.app.rule=Host(`app.127.0.0.1.nip.io`)",
+                "traefik.http.services.app.loadbalancer.server.port=${NOMAD_HOST_PORT_web}" ]
+ 
       check {
         type     = "http"
         method   = "GET"
@@ -85,12 +93,6 @@ EOF
       resources {
         cpu    = 256
         memory = 256
-      }
-    }
-    network {
-      mode = "bridge"
-      port "web" {
-        to = 8080
       }
     }
   }
