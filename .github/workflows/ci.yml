@@ -26,6 +26,9 @@ jobs:
           - name: dotnet
             dockerfile: app/dotnet/Dockerfile
             image_name: infralovers/nomad-vault-mysql-dotnet
+          - name: java
+            dockerfile: app/java/Dockerfile
+            image_name: infralovers/nomad-vault-mysql-java
     uses: infralovers/.github/.github/workflows/container.yml@main
     with:
       dockerfile: ${{ matrix.dockerfile }}
