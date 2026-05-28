@@ -14,16 +14,6 @@ job "dynamic-app" {
     service {
       name = "dynamic-app"
       port = "web"
-      tags = [ "traefik.enable=true", 
-                "traefik.http.routers.app.rule=Host(`app.127.0.0.1.nip.io`)" ]
-
-      check {
-        type     = "http"
-        method   = "GET"
-        interval = "10s"
-        timeout  = "2s"
-        path     = "/health"
-      }
     }
     restart {
       attempts = 10
@@ -36,7 +26,7 @@ job "dynamic-app" {
       driver = "docker"
 
       config {
-        image = "quay.io/infralovers/nomad-vault-mysql-dotnet"
+        image = "docker.io/mabunixda/dynamic-vault-app"
         volumes = [
           "local/config.ini:/app/config/config.ini"
         ]
