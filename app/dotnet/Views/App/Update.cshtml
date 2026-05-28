@@ -1,0 +1,70 @@
+@model NomadVaultMySqlDotnet.Models.CustomerRecord?
+
+<p><br></p>
+<h1 class="title">Update User</h1>
+<form action="/update" method="post">
+  <div class="field">
+    <label class="label">Customer Number</label>
+    <div class="control">
+      <input class="input" type="text" name="cust_no" placeholder="Customer Number" value="@(Model?.CustomerNumber > 0 ? Model.CustomerNumber : null)">
+    </div>
+  </div>
+
+  <div class="field">
+    <label class="label">First Name</label>
+    <div class="control">
+      <input class="input" type="text" name="first_name" placeholder="First Name" value="@Model?.FirstName">
+    </div>
+  </div>
+
+  <div class="field">
+    <label class="label">Last Name</label>
+    <div class="control">
+      <input class="input" type="text" name="last_name" placeholder="Last Name" value="@Model?.LastName">
+    </div>
+  </div>
+
+  <div class="field">
+    <label class="label">Birthdate</label>
+    <div class="control">
+      <input class="input" type="text" name="birth_date" placeholder="Birthdate" value="@Model?.BirthDate">
+    </div>
+  </div>
+
+  <div class="field">
+    <label class="label">Social Security Number</label>
+    <div class="control">
+      <input class="input" type="text" name="ssn" placeholder="SSN" value="@Model?.Ssn">
+    </div>
+  </div>
+
+  <div class="field">
+    <label class="label">Credit Card Number</label>
+    <div class="control">
+      <input class="input" type="text" name="ccn" placeholder="CCN" value="@Model?.Ccn">
+    </div>
+  </div>
+
+  <div class="field">
+    <label class="label">Address</label>
+    <div class="control">
+      <input class="input" type="text" name="address" placeholder="Address" value="@Model?.Address">
+    </div>
+  </div>
+
+  <div class="field">
+    <label class="label">Salary</label>
+    <div class="control">
+      <input class="input" type="text" name="salary" placeholder="Yearly Salary" value="@Model?.Salary">
+    </div>
+  </div>
+
+  <div class="field is-grouped">
+    <div class="control">
+      <button class="button is-link" type="submit">Submit</button>
+    </div>
+    <div class="control">
+      <a class="button is-text" href="/records">Cancel</a>
+    </div>
+  </div>
+</form>

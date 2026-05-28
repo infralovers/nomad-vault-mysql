@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+<body>
+<div layout:fragment="content">
+
+  <p><br></p>
+  <div class="tile is-ancestor">
+    <div class="tile is-vertical is-parent">
+      <p class="title" style="font-family:gilmer-web, Gilmer, Geneva, Tahoma, Helvetica, Verdana, sans-serif;">Application Data</p>
+      <p style="color:#363942;">This table represents the application view. Transit protects data in motion and keeps cryptographic operations in Vault.</p>
+    </div>
+  </div>
+
+  <div th:if="${recordAdded}" class="notification is-success">Record successfully added</div>
+  <div th:if="${recordUpdated}" class="notification is-info">Record successfully updated</div>
+
+  <table class="table is-bordered is-striped is-narrow is-hoverable is-fullwidth">
+    <thead>
+      <tr>
+        <th>Cust #</th>
+        <th>First</th>
+        <th>Last</th>
+        <th>Date of Birth</th>
+        <th>SSN</th>
+        <th>Credit Card Number</th>
+        <th>Address</th>
+        <th>Salary</th>
+        <th>Created</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr th:each="record : ${results}">
+        <td th:text="${record.customerNumber}"></td>
+        <td th:text="${record.firstName}"></td>
+        <td th:text="${record.lastName}"></td>
+        <td th:text="${record.birthDate}"></td>
+        <td th:text="${record.ssn}"></td>
+        <td th:text="${record.ccn}"></td>
+        <td th:text="${record.address}"></td>
+        <td th:text="${record.salary}"></td>
+        <td th:text="${record.createDate}"></td>
+        <td>
+          <a class="button is-small is-warning"
+             th:href="@{/update(cust_no=${record.customerNumber})}">Edit</a>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+</div>
+</body>
+</html>
