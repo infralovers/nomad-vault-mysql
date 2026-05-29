@@ -1,7 +1,11 @@
 using System.Net.Http.Headers;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using NomadVaultMySqlDotnet.Configuration;
+using VaultSharp;
+using VaultSharp.V1.AuthMethods.Token;
+using VaultSharp.V1.SecretsEngines.Transit;
 
 namespace NomadVaultMySqlDotnet.Services;
 
@@ -9,6 +13,7 @@ public sealed class VaultService
 {
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<VaultService> _logger;
+    private IVaultClient? _vaultClient;
 
     private VaultSettings _settings = new();
     private string _token = string.Empty;
@@ -42,6 +47,18 @@ public sealed class VaultService
             return;
         }
 
+        var authMethod = new TokenAuthMethodInfo(_token);
+        var vaultClientSettings = new VaultClientSettings(_settings.Address, authMethod)
+        {
+            Namespace = string.IsNullOrWhiteSpace(_settings.Namespace) ? null : _settings.Namespace,
+            MyHttpClientProviderFunc = handler => new HttpClient(new HttpClientHandler
+            {
+                // PoC only: trust self-signed/internal certs for demo environments.
+                ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+            })
+        };
+        _vaultClient = new VaultClient(vaultClientSettings);
+
         var healthResponse = await SendVaultRequestAsync(HttpMethod.Get, "/v1/sys/health", null, cancellationToken);
         if (!healthResponse.IsSuccessStatusCode)
         {
@@ -55,9 +72,27 @@ public sealed class VaultService
 
     public async Task<(string User, string Password)?> ReadDatabaseCredentialsAsync(string path, CancellationToken cancellationToken)
     {
-        if (!IsEnabled || string.IsNullOrWhiteSpace(path))
+        if (!IsEnabled || string.IsNullOrWhiteSpace(path) || _vaultClient is null)
         {
             return null;
+        }
+
+        // Vault dynamic DB creds path format: <mount>/creds/<role>
+        var parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        var credsIndex = Array.IndexOf(parts, "creds");
+        if (credsIndex > 0 && credsIndex < parts.Length - 1)
+        {
+            try
+            {
+                var mountPoint = string.Join('/', parts.Take(credsIndex));
+                var roleName = parts[credsIndex + 1];
+                var secret = await _vaultClient.V1.Secrets.Database.GetCredentialsAsync(roleName, mountPoint);
+                return (secret.Data.Username ?? string.Empty, secret.Data.Password ?? string.Empty);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to read db creds via VaultSharp from {Path}; falling back to generic API.", path);
+            }
         }
 
         var response = await SendVaultRequestAsync(HttpMethod.Get, $"/v1/{path}", null, cancellationToken);
@@ -90,47 +125,33 @@ public sealed class VaultService
 
     public async Task<string> EncryptAsync(string value, CancellationToken cancellationToken)
     {
-        if (!IsEnabled)
+        if (!IsEnabled || _vaultClient is null)
         {
             return value;
         }
 
         var plaintext = Convert.ToBase64String(Encoding.UTF8.GetBytes(value));
-        var payload = JsonSerializer.Serialize(new { plaintext });
-        var response = await SendVaultRequestAsync(
-            HttpMethod.Post,
-            $"/v1/{_settings.KeyPath}/encrypt/{_settings.KeyName}",
-            payload,
-            cancellationToken);
-
-        response.EnsureSuccessStatusCode();
-        using var doc = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
-        return doc.RootElement.GetProperty("data").GetProperty("ciphertext").GetString() ?? value;
+        var request = new EncryptRequestOptions { Base64EncodedPlainText = plaintext };
+        var response = await _vaultClient.V1.Secrets.Transit.EncryptAsync(_settings.KeyName, request, mountPoint: _settings.KeyPath);
+        return response.Data.CipherText ?? value;
     }
 
     public async Task<string> DecryptAsync(string value, CancellationToken cancellationToken)
     {
-        if (!IsEnabled || !value.StartsWith("vault:v", StringComparison.Ordinal))
+        if (!IsEnabled || _vaultClient is null || !value.StartsWith("vault:v", StringComparison.Ordinal))
         {
             return value;
         }
 
-        var payload = JsonSerializer.Serialize(new { ciphertext = value });
-        var response = await SendVaultRequestAsync(
-            HttpMethod.Post,
-            $"/v1/{_settings.KeyPath}/decrypt/{_settings.KeyName}",
-            payload,
-            cancellationToken);
-
-        response.EnsureSuccessStatusCode();
-        using var doc = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
-        var plaintext = doc.RootElement.GetProperty("data").GetProperty("plaintext").GetString();
-        if (string.IsNullOrWhiteSpace(plaintext))
+        var request = new DecryptRequestOptions { CipherText = value };
+        var response = await _vaultClient.V1.Secrets.Transit.DecryptAsync(_settings.KeyName, request, mountPoint: _settings.KeyPath);
+        var base64PlainText = response.Data.Base64EncodedPlainText;
+        if (string.IsNullOrWhiteSpace(base64PlainText))
         {
             return value;
         }
 
-        var decoded = Convert.FromBase64String(plaintext);
+        var decoded = Convert.FromBase64String(base64PlainText);
         return Encoding.UTF8.GetString(decoded);
     }
 
