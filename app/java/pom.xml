@@ -41,6 +41,12 @@
             <artifactId>thymeleaf-layout-dialect</artifactId>
         </dependency>
 
+        <!-- Vault library for production-like integration patterns -->
+        <dependency>
+            <groupId>org.springframework.vault</groupId>
+            <artifactId>spring-vault-core</artifactId>
+        </dependency>
+
         <!-- MySQL JDBC driver -->
         <dependency>
             <groupId>com.mysql</groupId>
