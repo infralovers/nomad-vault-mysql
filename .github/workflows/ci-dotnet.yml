@@ -1,0 +1,36 @@
+name: Infralovers Container Build (.NET)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app/dotnet/**"
+      - ".github/workflows/ci-dotnet.yml"
+
+  pull_request:
+    branches: [main]
+    paths:
+      - "app/dotnet/**"
+      - ".github/workflows/ci-dotnet.yml"
+
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+  packages: write
+
+jobs:
+  build-dotnet-container:
+    name: Build and Publish .NET Container
+    uses: infralovers/.github/.github/workflows/container.yml@main
+    with:
+      dockerfile: app/dotnet/Dockerfile
+      image_name: infralovers/nomad-vault-mysql-dotnet
+      score: 0
+      platforms: "linux/amd64, linux/arm64"
+      release: false
+      push_dockerhub: false
+      push_github: false
+      push_quay: true
