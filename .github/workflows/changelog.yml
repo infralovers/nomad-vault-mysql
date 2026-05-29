@@ -1,0 +1,12 @@
+---
+name: Infralovers Changelog Automation
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  changelog-automation:
+    uses: infralovers/.github/.github/workflows/changelog-automation.yml@main
