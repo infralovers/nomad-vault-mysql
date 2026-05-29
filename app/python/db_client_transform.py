@@ -1,5 +1,4 @@
 import logging
-import requests
 
 from db_client import DbClient as TransitDBClient
 
@@ -36,13 +35,6 @@ class DbClient(TransitDBClient):
                 + "/encode/"
                 + self.ssn_role
             )
-            payload = (
-                '{\n  "value": "'
-                + value
-                + '",\n  "transformation": "'
-                + self.ssn_role
-                + '"\n}'
-            )
             headers = {
                 "X-Vault-Token": self.vault_client.token,
                 "X-Vault-Namespace": super().get_namespace(),
@@ -50,7 +42,12 @@ class DbClient(TransitDBClient):
                 "cache-control": "no-cache",
             }
 
-            response = requests.request("POST", url, data=payload, headers=headers, timeout=300)
+            response = self.vault_client.adapter.post(
+                url=url,
+                json={"value": value, "transformation": self.ssn_role},
+                headers=headers,
+                timeout=300,
+            )
             logger.debug(f"Response: {response.text}")
             return response.json()["data"]["encoded_value"]
         except Exception as e:
@@ -68,13 +65,6 @@ class DbClient(TransitDBClient):
                 + "/encode/"
                 + self.ccn_role
             )
-            payload = (
-                '{\n  "value": "'
-                + value
-                + '",\n  "transformation": "'
-                + self.ccn_role
-                + '"\n}'
-            )
             headers = {
                 "X-Vault-Token": self.vault_client.token,
                 "X-Vault-Namespace": self.get_namespace(),
@@ -82,7 +72,12 @@ class DbClient(TransitDBClient):
                 "cache-control": "no-cache",
             }
 
-            response = requests.request("POST", url, data=payload, headers=headers, timeout=300)
+            response = self.vault_client.adapter.post(
+                url=url,
+                json={"value": value, "transformation": self.ccn_role},
+                headers=headers,
+                timeout=300,
+            )
             logger.debug(f"Response: {response.text}")
             return response.json()["data"]["encoded_value"]
         except Exception as e:
@@ -102,13 +97,6 @@ class DbClient(TransitDBClient):
                 + "/decode/"
                 + self.ssn_role
             )
-            payload = (
-                '{\n  "value": "'
-                + value
-                + '",\n  "transformation": "'
-                + self.ssn_role
-                + '"\n}'
-            )
             headers = {
                 "X-Vault-Token": self.vault_client.token,
                 "X-Vault-Namespace": self.get_namespace(),
@@ -116,8 +104,11 @@ class DbClient(TransitDBClient):
                 "cache-control": "no-cache",
             }
 
-            response = requests.request(
-                "POST", url, data=payload, headers=headers, timeout=300
+            response = self.vault_client.adapter.post(
+                url=url,
+                json={"value": value, "transformation": self.ssn_role},
+                headers=headers,
+                timeout=300,
             )
             logger.debug(f"Response: {response.text}")
             return response.json()["data"]["decoded_value"]
