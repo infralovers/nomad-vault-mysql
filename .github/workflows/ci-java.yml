@@ -15,8 +15,24 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
+  id-token: write
+  packages: write
 
 jobs:
+  build-java-container:
+    name: Build and Publish Java Container
+    uses: infralovers/.github/.github/workflows/container.yml@main
+    with:
+      dockerfile: app/java/Dockerfile
+      image_name: infralovers/nomad-vault-mysql-java
+      score: 0
+      platforms: "linux/amd64, linux/arm64"
+      release: false
+      push_dockerhub: false
+      push_github: false
+      push_quay: true
+
   build-java-artifact:
     name: Build Java JAR
     runs-on: ubuntu-latest

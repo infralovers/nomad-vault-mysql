@@ -5,6 +5,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.infralovers.nomadvaultmysql.config.AppProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.vault.authentication.TokenAuthentication;
+import org.springframework.vault.client.VaultEndpoint;
+import org.springframework.vault.core.VaultTemplate;
+import org.springframework.vault.core.VaultTransitOperations;
+import org.springframework.vault.support.VaultResponse;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -15,6 +20,7 @@ import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
 import java.time.Duration;
 import java.util.Base64;
+import java.util.Map;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
@@ -41,6 +47,8 @@ public class VaultService {
 
     private String  token     = "";
     private boolean enabled   = false;
+    private VaultTemplate vaultTemplate;
+    private VaultTransitOperations vaultTransit;
 
     public boolean isEnabled() { return enabled; }
 
@@ -64,6 +72,17 @@ public class VaultService {
         if (config.getAddress().isBlank() || token.isBlank()) {
             log.warn("Vault address or token is missing — skipping Vault initialisation.");
             return;
+        }
+
+        try {
+            VaultEndpoint endpoint = VaultEndpoint.from(URI.create(config.getAddress()));
+            vaultTemplate = new VaultTemplate(endpoint, new TokenAuthentication(token));
+            vaultTransit = vaultTemplate.opsForTransit(config.getKeyPath());
+            log.info("Spring Vault client initialized for mount path {}", config.getKeyPath());
+        } catch (Exception e) {
+            vaultTemplate = null;
+            vaultTransit = null;
+            log.warn("Spring Vault client initialization failed ({}); using raw HTTP fallback.", e.getMessage());
         }
 
         try {
@@ -123,6 +142,13 @@ public class VaultService {
 
     public String encrypt(String value) {
         if (!enabled || value == null || value.isBlank()) return value;
+        if (vaultTransit != null) {
+            try {
+                return vaultTransit.encrypt(config.getKeyName(), value);
+            } catch (Exception e) {
+                log.warn("Spring Vault transit encrypt failed ({}); using raw HTTP fallback.", e.getMessage());
+            }
+        }
         try {
             String b64 = Base64.getEncoder().encodeToString(value.getBytes(StandardCharsets.UTF_8));
             String body = json.writeValueAsString(new PlainTextPayload(b64));
@@ -142,6 +168,13 @@ public class VaultService {
 
     public String decrypt(String value) {
         if (!enabled || value == null || !value.startsWith("vault:v")) return value;
+        if (vaultTransit != null) {
+            try {
+                return vaultTransit.decrypt(config.getKeyName(), value);
+            } catch (Exception e) {
+                log.warn("Spring Vault transit decrypt failed ({}); using raw HTTP fallback.", e.getMessage());
+            }
+        }
         try {
             String body = json.writeValueAsString(new CiphertextPayload(value));
             String path = String.format("/v1/%s/decrypt/%s", config.getKeyPath(), config.getKeyName());
@@ -163,6 +196,29 @@ public class VaultService {
 
     public DbCreds readDatabaseCredentials(String path) {
         if (!enabled || path == null || path.isBlank()) return null;
+        if (vaultTemplate != null) {
+            try {
+                VaultResponse response = vaultTemplate.read(path);
+                if (response != null && response.getData() != null) {
+                    Map<String, Object> data = response.getData();
+                    Object username = data.get("username");
+                    Object password = data.get("password");
+                    if (username != null && password != null) {
+                        return new DbCreds(String.valueOf(username), String.valueOf(password));
+                    }
+                    Object nested = data.get("data");
+                    if (nested instanceof Map<?, ?> nestedMap) {
+                        Object nestedUser = nestedMap.get("username");
+                        Object nestedPassword = nestedMap.get("password");
+                        if (nestedUser != null && nestedPassword != null) {
+                            return new DbCreds(String.valueOf(nestedUser), String.valueOf(nestedPassword));
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("Spring Vault db creds read failed ({}); using raw HTTP fallback.", e.getMessage());
+            }
+        }
         try {
             HttpRequest req = buildGet("/v1/" + path);
             HttpResponse<String> res = http.send(req, HttpResponse.BodyHandlers.ofString());
